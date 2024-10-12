@@ -3,6 +3,7 @@ import os
 import logging
 import re
 import time
+from datetime import datetime
 
 from helpers.dbHelper import DbHelper
 from helpers.telegramHelper import TelegramBotHelper
@@ -13,7 +14,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-
 
 class CarNotifier:
     def __init__(self):
@@ -37,6 +37,17 @@ class CarNotifier:
 
     def search_for_cars(self):
         inserted_ids = []  # To store inserted car IDs
+
+        # Get the current date and time
+        now = datetime.now()
+        date_time_message = (
+            f"🕒 *Car Search Started* 🚨\n"
+            f"📅 *Date*: {now.strftime('%Y-%m-%d')}\n"
+            f"⏰ *Time*: {now.strftime('%H:%M:%S')}\n"
+        )
+
+        # Send the first message with date and time
+        self.bot_helper.send_result(date_time_message)
 
         for car_config in self.cars_config:
             # Prepare a nicely formatted message for the search parameters
@@ -95,8 +106,7 @@ class CarNotifier:
 
             logger.info(
                 f"Found {len(cars_to_send)} cars for {car_config['title_contains']} that were sent to Telegram.")
-            self.bot_helper.send_result(
-                f"✅ Found {len(cars_to_send)} cars for *{car_config['title_contains'].capitalize()}* 🚗")
+            self.bot_helper.send_result(f"✅ Found {len(cars_to_send)} cars for *{car_config['title_contains'].capitalize()}* 🚗")
 
         # Send a summary log with the inserted IDs
         if inserted_ids:
@@ -106,7 +116,6 @@ class CarNotifier:
             )
             self.bot_helper.send_result(summary_message)
             logger.info(f"Inserted {len(inserted_ids)} car IDs into the database.")
-
 
 if __name__ == '__main__':
     notifier = CarNotifier()
