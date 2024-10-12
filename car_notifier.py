@@ -36,7 +36,8 @@ class CarNotifier:
 
     def search_for_cars(self):
         for car_config in self.cars_config:
-            logger.info(f"Searching for cars: {car_config['title_contains']}")
+            logger.info(f"Searching for cars: {car_config}")
+            self.bot_helper.send_result(f"Searching for cars: {car_config}")
 
             new_cars = list(self.db_helper.db.find({
                 "Price": {"$lte": car_config['max_price']},
@@ -74,6 +75,7 @@ class CarNotifier:
                     logger.info(f"Car with ID {car['ID']} sent and saved to sent_listings.")
 
             logger.info(f"Found {len(cars_to_send)} cars for {car_config['title_contains']} that were sent to Telegram.")
+            self.bot_helper.send_result(f"Found {len(cars_to_send)} cars for {car_config['title_contains']}")
 
 if __name__ == '__main__':
     notifier = CarNotifier()
