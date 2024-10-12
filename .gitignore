@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Packages
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+bin/
+var/
+sdist/
+wheels/
+.installed.cfg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyCharm
+.idea/
+
+# Environments
+.env
+venv/
+env/
+ENV/
+venv.bak/
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+*.log.*
+
+# Ignore virtual environments
+
+# Ignore SQLite database
+*.sqlite3
