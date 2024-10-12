@@ -11,7 +11,7 @@
             "max_price": 100000,
             "max_mileage": 150000,
             "max_proximity": 50,
-            "title_contains": "audi",
+            "title_contains": "mercedes",
             "min_year": 2019
         }
     ],

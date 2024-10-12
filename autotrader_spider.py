@@ -96,7 +96,7 @@ class AutoTraderSpider(scrapy.Spider):
         next_rcs = current_rcs + 100  # Increment by 100
 
         # Check if we've exceeded the limit (in your case, 110000)
-        if next_rcs >= 200:
+        if next_rcs >= 110000:
             self.log(f"Reached the limit of {next_rcs}, stopping pagination.")
             return
 
