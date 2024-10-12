@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+
 class CarNotifier:
     def __init__(self):
         project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -35,9 +36,25 @@ class CarNotifier:
         return int(match.group()) if match else None
 
     def search_for_cars(self):
+        inserted_ids = []  # To store inserted car IDs
+
         for car_config in self.cars_config:
+            # Prepare a nicely formatted message for the search parameters
+            search_message = (
+                f"🔍🚗 *🚨 Car Search Alert!* 🚨\n\n"
+                f"📋 *Search Criteria*:\n"
+                f"💰 *Max Price*: {car_config['max_price']}\n"
+                f"📏 *Max Mileage*: {car_config['max_mileage']} km\n"
+                f"📍 *Max Proximity*: {car_config['max_proximity']} km\n"
+                f"🚗 *Brand*: {car_config['title_contains'].capitalize()}\n"
+                f"📅 *Min Year*: {car_config['min_year']}\n"
+            )
+
+            # Send the formatted message to Telegram
+            self.bot_helper.send_result(search_message)
+
+            # Logging the same search message
             logger.info(f"Searching for cars: {car_config}")
-            self.bot_helper.send_result(f"Searching for cars: {car_config}")
 
             new_cars = list(self.db_helper.db.find({
                 "Price": {"$lte": car_config['max_price']},
@@ -62,20 +79,34 @@ class CarNotifier:
                 if not self.sent_db.db.find_one({"ID": car["ID"]}):
                     cars_to_send.append(car)
                     message = (
-                        f"New car found: {car['Title']}\n"
-                        f"Mileage: {car['Mileage'] if car['Mileage'] else 'Unknown'}\n"
-                        f"Price: {car['Price']}\n"
-                        f"Proximity: {car['Proximity']} km\n"
-                        f"Link: {car['Product URL']}\n"
-                        f"Year: {year if year else 'Unknown'}"
+                        f"🎉 *New Car Found* 🎉:\n\n"
+                        f"📝 *Title*: {car['Title']}\n"
+                        f"📅 *Year*: {year if year else 'Unknown'}\n"
+                        f"💰 *Price*: {car['Price']}\n"
+                        f"📏 *Mileage*: {car['Mileage'] if car['Mileage'] else 'Unknown'} km\n"
+                        f"📍 *Proximity*: {car['Proximity']} km\n"
+                        f"🔗 *Link*: [View Car]({car['Product URL']})"
                     )
                     time.sleep(1)
                     self.bot_helper.send_result(message)
                     self.sent_db.db.insert_one({"ID": car["ID"]})
+                    inserted_ids.append(car["ID"])  # Add ID to the list
                     logger.info(f"Car with ID {car['ID']} sent and saved to sent_listings.")
 
-            logger.info(f"Found {len(cars_to_send)} cars for {car_config['title_contains']} that were sent to Telegram.")
-            self.bot_helper.send_result(f"Found {len(cars_to_send)} cars for {car_config['title_contains']}")
+            logger.info(
+                f"Found {len(cars_to_send)} cars for {car_config['title_contains']} that were sent to Telegram.")
+            self.bot_helper.send_result(
+                f"✅ Found {len(cars_to_send)} cars for *{car_config['title_contains'].capitalize()}* 🚗")
+
+        # Send a summary log with the inserted IDs
+        if inserted_ids:
+            summary_message = (
+                f"📝 *Summary*: {len(inserted_ids)} cars inserted to the database.\n"
+                f"🆔 *Inserted IDs*: {', '.join(inserted_ids)}"
+            )
+            self.bot_helper.send_result(summary_message)
+            logger.info(f"Inserted {len(inserted_ids)} car IDs into the database.")
+
 
 if __name__ == '__main__':
     notifier = CarNotifier()
