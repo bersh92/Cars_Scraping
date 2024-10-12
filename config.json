@@ -20,6 +20,13 @@
             "max_proximity": 50,
             "title_contains": "toyota",
             "min_year": 2011
+        },
+        {
+            "max_price": 4000,
+            "max_mileage": 150000,
+            "max_proximity": 50,
+            "title_contains": " ",
+            "min_year": 2012
         }
     ],
     "start_url": "https://www.autotrader.ca/cars/on/mississauga/?rcp=100&rcs=0&srt=9&prx=100&prv=Ontario&loc=L4Z%200A5&hprc=True&wcp=True&sts=New-Used&inMarket=basicSearch",
