@@ -23,7 +23,7 @@
         },
         {
             "max_price": 4000,
-            "max_mileage": 150000,
+            "max_mileage": 180000,
             "max_proximity": 50,
             "title_contains": " ",
             "min_year": 2012
