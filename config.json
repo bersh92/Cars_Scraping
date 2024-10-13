@@ -2,21 +2,21 @@
     "cars": [
         {
             "max_price": 4000,
-            "max_mileage": 200000,
+            "max_mileage": 250000,
             "max_proximity": 50,
             "title_contains": "hyundai",
             "min_year": 2011
         },
         {
             "max_price": 4000,
-            "max_mileage": 200000,
+            "max_mileage": 250000,
             "max_proximity": 50,
             "title_contains": "mazda",
             "min_year": 2011
         },
         {
             "max_price": 4000,
-            "max_mileage": 200000,
+            "max_mileage": 250000,
             "max_proximity": 50,
             "title_contains": "toyota",
             "min_year": 2011
