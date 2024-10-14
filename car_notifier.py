@@ -41,23 +41,24 @@ class CarNotifier:
         # Get the current date and time
         now = datetime.now()
         date_time_message = (
-            f"🕒 *Car Search Started* 🚨\n"
+            f"🕒 *Car Search Started*\n"
             f"📅 *Date*: {now.strftime('%Y-%m-%d')}\n"
             f"⏰ *Time*: {now.strftime('%H:%M:%S')}\n"
         )
 
         # Send the first message with date and time
+        self.bot_helper.send_result("----------------------")
         self.bot_helper.send_result(date_time_message)
 
         for car_config in self.cars_config:
             # Prepare a nicely formatted message for the search parameters
             search_message = (
-                f"🔍🚗 *🚨 Car Search Alert!* 🚨\n\n"
+                f"*🚨 Car Search* 🚨\n\n"
                 f"📋 *Search Criteria*:\n"
                 f"💰 *Max Price*: {car_config['max_price']}\n"
                 f"📏 *Max Mileage*: {car_config['max_mileage']} km\n"
                 f"📍 *Max Proximity*: {car_config['max_proximity']} km\n"
-                f"🚗 *Brand*: {car_config['title_contains'].capitalize()}\n"
+                f"🚙 *Brand*: {car_config['title_contains'].capitalize()}\n"
                 f"📅 *Min Year*: {car_config['min_year']}\n"
             )
 
@@ -106,7 +107,7 @@ class CarNotifier:
 
             logger.info(
                 f"Found {len(cars_to_send)} cars for {car_config['title_contains']} that were sent to Telegram.")
-            self.bot_helper.send_result(f"✅ Found {len(cars_to_send)} cars for *{car_config['title_contains'].capitalize()}* 🚗")
+            self.bot_helper.send_result(f"Found {len(cars_to_send)} cars for *{car_config['title_contains'].capitalize()}* 🚗")
 
         # Send a summary log with the inserted IDs
         if inserted_ids:
