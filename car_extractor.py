@@ -7,6 +7,7 @@ import logging
 from dotenv import load_dotenv
 
 from helpers.dbHelper import DbHelper
+from helpers.telegramHelper import TelegramBotHelper  # Import your TelegramBotHelper
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,6 +29,9 @@ class CarsExtractor:
         self.db_helper = DbHelper(os.getenv('DATABASE_NAME'), "listings")
         # Collection for storing extracted cars
         self.extracted_cars_db = DbHelper(os.getenv('DATABASE_NAME'), "extracted_cars")
+
+        # Initialize your TelegramBotHelper
+        self.bot_helper = TelegramBotHelper()
 
     def extract_year_from_title(self, title):
         """Extract the first four-digit number in the title (assuming it's the year)."""
@@ -73,10 +77,23 @@ class CarsExtractor:
             )
 
         # Log the summary
-        logger.info(f"Total cars extracted and stored: {len(extracted_car_ids)}")
+        total_extracted = len(extracted_car_ids)
+        logger.info(f"Total cars extracted and stored: {total_extracted}")
         if extracted_car_ids:
             logger.info(f"Extracted Car IDs: {', '.join(extracted_car_ids)}")
+
+        # Prepare the message to send via Telegram
+        message = f"Total cars extracted and stored based on search parameters: {total_extracted}"
+
+        # Send the message using your TelegramBotHelper
+        self.bot_helper.send_result(message)
+
+    def close_connections(self):
+        """Close database connections."""
+        self.db_helper.close_connection()
+        self.extracted_cars_db.close_connection()
 
 if __name__ == '__main__':
     extractor = CarsExtractor()
     extractor.extract_cars()
+    extractor.close_connections()

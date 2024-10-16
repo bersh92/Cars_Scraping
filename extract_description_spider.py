@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from scrapy.crawler import CrawlerProcess
 
 from helpers.dbHelper import DbHelper
+from helpers.telegramHelper import TelegramBotHelper  # Import your TelegramBotHelper
 
 load_dotenv()
 
@@ -41,6 +42,12 @@ class DescriptionSpider(scrapy.Spider):
         # Get the list of cars from the extracted_cars collection
         self.cars = list(self.db_helper.db.find({}))
 
+        # Initialize your TelegramBotHelper
+        self.bot_helper = TelegramBotHelper()
+
+        # Initialize counters
+        self.total_descriptions_extracted = 0
+
     def start_requests(self):
         headers = {
             'User-Agent': self.custom_settings['USER_AGENT'],
@@ -72,7 +79,15 @@ class DescriptionSpider(scrapy.Spider):
         description = response.xpath('//meta[@name="description"]/@content').get()
         if description:
             description = description.strip()
-            logger.info(f"Extracted description from meta[name='description'] for car ID {car_id}")
+            if len(description) >= 3:
+                logger.info(f"Extracted description for car ID {car_id}")
+                self.total_descriptions_extracted += 1  # Increment counter
+            else:
+                logger.warning(f"Description too short for car ID {car_id}")
+                description = ''  # Optionally set description to empty if too short
+        else:
+            logger.warning(f"No description found for car ID {car_id}")
+            description = ''  # Ensure description is an empty string
 
         # Update the database entry with the description
         self.db_helper.db.update_one(
@@ -88,6 +103,12 @@ class DescriptionSpider(scrapy.Spider):
         logger.error(f"Request failed for car ID {car_id}: {failure.value}")
 
     def closed(self, reason):
+        # Send message via Telegram with the total descriptions extracted
+        message = f"Total descriptions extracted and stored (with at least 3 characters): {self.total_descriptions_extracted}"
+        self.bot_helper.send_result(message)
+        logger.info(f"Sent Telegram message: {message}")
+
+        # Close database connection
         self.db_helper.close_connection()
         logger.info(f"Spider closed: {reason}")
 

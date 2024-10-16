@@ -1,4 +1,4 @@
-openai==1.51.2
+openai==0.28.0
 scrapy==2.11.2
 pymongo==4.10.1
 python-telegram-bot==13.7

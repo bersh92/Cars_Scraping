@@ -4,7 +4,9 @@ import logging
 import re
 import time
 from datetime import datetime
+import sys
 
+from helpers.chatGptDescriptionCheck import ChatGptDescriptionCheck
 from helpers.dbHelper import DbHelper
 from helpers.telegramHelper import TelegramBotHelper
 from dotenv import load_dotenv
@@ -26,9 +28,13 @@ class CarNotifier:
 
         # Load multiple car search configurations
         self.cars_config = config['cars']
-        self.db_helper = DbHelper(os.getenv('DATABASE_NAME'), "listings")
+        self.db_helper = DbHelper(os.getenv('DATABASE_NAME'), "extracted_cars")  # Use extracted_cars collection
         self.sent_db = DbHelper(os.getenv('DATABASE_NAME'), "sent_listings")
         self.bot_helper = TelegramBotHelper()
+
+        # Initialize the description checker
+        self.description_checker = ChatGptDescriptionCheck()
+        logger.info("Description checker initialized.")
 
     def extract_year_from_title(self, title):
         """Extract the first four-digit number in the title (assuming it's the year)."""
@@ -36,7 +42,7 @@ class CarNotifier:
         return int(match.group()) if match else None
 
     def search_for_cars(self):
-        inserted_ids = []  # To store inserted car IDs
+        total_inserted_ids = []  # To store all inserted car IDs across all configurations
 
         # Get the current date and time
         now = datetime.now()
@@ -51,6 +57,12 @@ class CarNotifier:
         self.bot_helper.send_result(date_time_message)
 
         for car_config in self.cars_config:
+            # Initialize inserted_ids for this configuration
+            inserted_ids = []  # IDs of cars sent for this configuration
+
+            # Determine if description check is enabled for this configuration
+            use_description_check = car_config.get('use_description_check', False)
+
             # Prepare a nicely formatted message for the search parameters
             search_message = (
                 f"*🚨 Car Search* 🚨\n\n"
@@ -60,6 +72,7 @@ class CarNotifier:
                 f"📍 *Max Proximity*: {car_config['max_proximity']} km\n"
                 f"🚙 *Brand*: {car_config['title_contains'].capitalize()}\n"
                 f"📅 *Min Year*: {car_config['min_year']}\n"
+                f"📝 *Description Check*: {'Enabled' if use_description_check else 'Disabled'}\n"
             )
 
             # Send the formatted message to Telegram
@@ -68,6 +81,7 @@ class CarNotifier:
             # Logging the same search message
             logger.info(f"Searching for cars: {car_config}")
 
+            # Query the extracted_cars collection
             new_cars = list(self.db_helper.db.find({
                 "Price": {"$lte": car_config['max_price']},
                 "$or": [
@@ -78,8 +92,6 @@ class CarNotifier:
                 "Title": {"$regex": f".*{car_config['title_contains']}.*", "$options": "i"}
             }))
 
-            cars_to_send = []
-
             for car in new_cars:
                 title = car['Title']
                 year = self.extract_year_from_title(title)
@@ -88,8 +100,31 @@ class CarNotifier:
                 if car_config['min_year'] and year and year < car_config['min_year']:
                     continue
 
+                # Check if the car has already been sent
                 if not self.sent_db.db.find_one({"ID": car["ID"]}):
-                    cars_to_send.append(car)
+                    # If description check is enabled, evaluate the description
+                    if use_description_check:
+                        description = car.get('Description', '')
+                        if description and len(description) >= 3:
+                            try:
+                                result = self.description_checker.check_the_car(description)
+                                if result is True:
+                                    verdict = "✅ Good"
+                                elif result is False:
+                                    verdict = "❌ Bad"
+                                    continue  # Skip bad cars
+                                else:
+                                    verdict = "🤔 Maybe OK"
+                            except Exception as e:
+                                logger.error(f"Error checking description: {e}")
+                                sys.exit(1)  # Exit the script with an error
+                        else:
+                            verdict = "⚠️ No Description"
+                            logger.warning(f"No valid description for car ID {car['ID']}")
+                    else:
+                        verdict = ""
+
+                    # Prepare the message to send
                     message = (
                         f"🎉 *New Car Found* 🎉:\n\n"
                         f"📝 *Title*: {car['Title']}\n"
@@ -97,27 +132,40 @@ class CarNotifier:
                         f"💰 *Price*: {car['Price']}\n"
                         f"📏 *Mileage*: {car['Mileage'] if car['Mileage'] else 'Unknown'} km\n"
                         f"📍 *Proximity*: {car['Proximity']} km\n"
-                        f"🔗 *Link*: [View Car]({car['Product URL']})"
+                        f"🔗 *Link*: [View Car]({car['Product URL']})\n"
                     )
+
+                    # If description check is enabled, add the verdict to the message
+                    if use_description_check:
+                        message += f"\n🔍 *Description Check*: {verdict}\n"
+
                     time.sleep(1)
                     self.bot_helper.send_result(message)
                     self.sent_db.db.insert_one({"ID": car["ID"]})
                     inserted_ids.append(car["ID"])  # Add ID to the list
+                    total_inserted_ids.append(car["ID"])  # Add to total list
                     logger.info(f"Car with ID {car['ID']} sent and saved to sent_listings.")
 
+            # Log and send the number of cars sent for this configuration
             logger.info(
-                f"Found {len(cars_to_send)} cars for {car_config['title_contains']} that were sent to Telegram.")
-            self.bot_helper.send_result(f"Found {len(cars_to_send)} cars for *{car_config['title_contains'].capitalize()}* 🚗")
+                f"Found {len(inserted_ids)} cars for {car_config['title_contains']} that were sent to Telegram.")
+            self.bot_helper.send_result(f"Found {len(inserted_ids)} cars for *{car_config['title_contains'].capitalize()}* 🚗")
 
-        # Send a summary log with the inserted IDs
-        if inserted_ids:
+        # Send a summary log with the total inserted IDs
+        if total_inserted_ids:
             summary_message = (
-                f"📝 *Summary*: {len(inserted_ids)} cars inserted to the database.\n"
-                f"🆔 *Inserted IDs*: {', '.join(inserted_ids)}"
+                f"📝 *Summary*: {len(total_inserted_ids)} cars sent to Telegram.\n"
+                f"🆔 *Sent IDs*: {', '.join(total_inserted_ids)}"
             )
             self.bot_helper.send_result(summary_message)
-            logger.info(f"Inserted {len(inserted_ids)} car IDs into the database.")
+            logger.info(f"Sent {len(total_inserted_ids)} car IDs to Telegram.")
+
+    def close_connections(self):
+        """Close database connections."""
+        self.db_helper.close_connection()
+        self.sent_db.close_connection()
 
 if __name__ == '__main__':
     notifier = CarNotifier()
     notifier.search_for_cars()
+    notifier.close_connections()

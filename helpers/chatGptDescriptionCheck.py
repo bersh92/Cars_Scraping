@@ -1,38 +1,58 @@
+# helpers/chatGptDescriptionCheck.py
+
 import os
 import openai
 from dotenv import load_dotenv
+import logging
 
 # Load API key from .env file
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 class ChatGptDescriptionCheck:
     def __init__(self):
-        self.prompt_template = (
-            "I am in Canada looking for a car. Based on the description below, "
-            "determine if the car is 'good', 'bad', or 'maybe ok'. Consider if "
-            "the car might be a scam, if it has issues with the engine or transmission, "
-            "if it needs a lot of repairs, or if it can pass a road test. Respond only with "
-            "'good', 'bad', or 'maybe ok'. Here is the description:\n\n{}"
+        self.system_prompt = (
+            "You are an assistant helping to evaluate car listings in Canada. "
+            "Based on the description provided, respond with one of the following words exactly: 'good', 'bad', or 'maybe ok'. "
+            "Consider if the car might be a scam, if it has issues with the engine or transmission, "
+            "if it needs a lot of repairs, or if it can pass a road test. "
+            "Respond only with 'good', 'bad', or 'maybe ok', and nothing else."
         )
 
     def check_the_car(self, description):
-        # Prepare the prompt
-        prompt = self.prompt_template.format(description)
+        try:
+            # Call the ChatCompletion endpoint
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",  # Use "gpt-4" if you have access
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": description}
+                ],
+                max_tokens=3,
+                temperature=0.0,
+                n=1,
+                stop=None
+            )
 
-        # Call ChatGPT API
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=50,
-            temperature=0.5
-        )
+            # Get the assistant's reply
+            result = response.choices[0].message['content'].strip().lower()
+            logger.info(f"OpenAI response: '{result}'")
 
-        # Get the answer and return True for good, False for bad, maybe ok otherwise
-        result = response.choices[0].text.strip().lower()
-        if result == "good":
-            return True
-        elif result == "bad":
-            return False
-        else:
-            return None  # maybe ok
+            # Check for exact matches
+            if result == "good":
+                return True
+            elif result == "bad":
+                return False
+            elif result == "maybe ok":
+                return None  # maybe ok
+            else:
+                # Handle unexpected responses
+                logger.warning(f"Unexpected response from OpenAI: '{result}'")
+                return None
+        except Exception as e:
+            # Handle exceptions (e.g., API errors)
+            logger.error(f"OpenAI API error: {e}")
+            raise  # Re-raise the exception to make the script fail
