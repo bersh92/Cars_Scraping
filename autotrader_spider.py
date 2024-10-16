@@ -36,8 +36,22 @@ def sanitize_proximity(proximity):
 class AutoTraderSpider(scrapy.Spider):
     name = 'autotrader_spider'
     custom_settings = {
-        'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)',
-        'DOWNLOAD_DELAY': 1
+        'USER_AGENT': (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            ' AppleWebKit/537.36 (KHTML, like Gecko)'
+            ' Chrome/90.0.4430.85 Safari/537.36'
+        ),
+        'DOWNLOAD_DELAY': 2,
+        'RANDOMIZE_DOWNLOAD_DELAY': True,
+        'AUTOTHROTTLE_ENABLED': True,
+        'AUTOTHROTTLE_START_DELAY': 1,
+        'AUTOTHROTTLE_MAX_DELAY': 10,
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 1.0,
+        'RETRY_ENABLED': True,
+        'RETRY_TIMES': 2,  # Number of retries for failed requests
+        'RETRY_HTTP_CODES': [500, 502, 503, 504, 522, 524, 408, 429, 403],
+        'HTTPERROR_ALLOWED_CODES': [403],
+        'HANDLE_HTTPSTATUS_LIST': [403],
     }
 
     project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -52,6 +66,18 @@ class AutoTraderSpider(scrapy.Spider):
     items = []
 
     def parse(self, response):
+        # Check for 'Something went wrong.' message
+        text = response.css('#MainPanel h4::text').get(default='')
+        if 'Something went wrong.' in text:
+            self.log("No car data found, stopping pagination.")
+            print(response.body)
+            return
+
+        # Check for 403 Forbidden response
+        if response.status == 403:
+            self.log(f"Received 403 Forbidden at {response.url}")
+            return
+
         # Select the product blocks
         car_data = response.css('div[id="result-item-inner-div"]')
 
@@ -61,12 +87,12 @@ class AutoTraderSpider(scrapy.Spider):
             return
 
         for car in car_data:
-            title = car.css('span.title-with-trim::text').get()
-            price = car.css('span.price-amount::text').get()
+            title = car.css('span.title-with-trim::text').get(default='')
+            price = car.css('span.price-amount::text').get(default='')
             url = car.css('a.inner-link::attr(href)').get()
-            mileage = car.css('span.odometer-proximity::text').get()
-            parent_id = car.xpath('./ancestor::div[1]/@id').get()
-            proximity = car.css('.proximity [class="proximity-text"]::text').get()
+            mileage = car.css('span.odometer-proximity::text').get(default='')
+            parent_id = car.xpath('./ancestor::div[1]/@id').get(default='')
+            proximity = car.css('.proximity [class="proximity-text"]::text').get(default='')
 
             # Sanitize and format the data before storing
             sanitized_price = sanitize_price(price)
@@ -95,9 +121,11 @@ class AutoTraderSpider(scrapy.Spider):
         current_rcs = int(query_params.get('rcs', [0])[0])
         next_rcs = current_rcs + 100  # Increment by 100
 
-        # Check if we've exceeded the limit (in your case, 110000)
-        if next_rcs >= 110000:
-            self.log(f"Reached the limit of {next_rcs}, stopping pagination.")
+        # Set a maximum rcs value to avoid triggering server-side limits
+        MAX_RCS = 110000  # Adjust based on observations
+
+        if next_rcs >= MAX_RCS:
+            self.log(f"Reached the maximum rcs value of {MAX_RCS}, stopping pagination.")
             return
 
         # Update the 'rcs' parameter in the query string
@@ -108,11 +136,9 @@ class AutoTraderSpider(scrapy.Spider):
         next_page_url = urlunparse(parsed_url._replace(query=new_query))
 
         # Log and request the next page
-        # self.log(f"Next page URL: {next_page_url}")
         yield scrapy.Request(url=next_page_url, callback=self.parse)
 
     def closed(self, reason):
-
         try:
             if reason == "finished":
                 self.db_helper.delete_all()
