@@ -113,8 +113,10 @@ class CarNotifier:
                                 elif result is False:
                                     verdict = "❌ Bad"
                                     continue  # Skip bad cars
-                                else:
+                                elif result is "maybe ok":
                                     verdict = "🤔 Maybe OK"
+                                else:
+                                    verdict = "Unexpected verdict: " + result    
                             except Exception as e:
                                 logger.error(f"Error checking description: {e}")
                                 sys.exit(1)  # Exit the script with an error
