@@ -26,7 +26,7 @@ class ChatGptDescriptionCheck:
         try:
             # Call the ChatCompletion endpoint
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",  # Use "gpt-4" if you have access
+                model="gpt-4",  # Use "gpt-4" if you have access
                 messages=[
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": description}
