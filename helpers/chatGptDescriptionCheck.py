@@ -50,8 +50,9 @@ class ChatGptDescriptionCheck:
                 return None  # maybe ok
             else:
                 # Handle unexpected responses
+                message = f"Unexpected response from OpenAI: '{result}'"
                 logger.warning(f"Unexpected response from OpenAI: '{result}'")
-                return None
+                return message
         except Exception as e:
             # Handle exceptions (e.g., API errors)
             logger.error(f"OpenAI API error: {e}")
