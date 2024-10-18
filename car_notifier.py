@@ -102,6 +102,11 @@ class CarNotifier:
 
                 # Check if the car has already been sent
                 if not self.sent_db.db.find_one({"ID": car["ID"]}):
+                    # Skip description check for cars already in sent_listings
+                    if use_description_check and self.sent_db.db.find_one({"ID": car["ID"]}):
+                        logger.info(f"Car ID {car['ID']} already checked, skipping description check.")
+                        continue
+
                     # Initialize verdict
                     verdict = ""
 
@@ -114,18 +119,18 @@ class CarNotifier:
                                 if result is True:
                                     verdict = "✅ Good"
                                 else:
-                                    # Include cars that are 'maybe ok' or have unexpected responses
-                                    verdict = f"❓ {result}"
-                                    # Optionally, you can decide whether to skip 'bad' cars
-                                    if result is False:
+                                    # If car is "bad" skip it
+                                    if result == False:
                                         verdict = f"❌ Bad"
-                                        continue  # Skip the car if you don't want 'bad' cars
+                                        continue  # Skip bad cars
+                                    # Handle "maybe ok" or other responses
+                                    verdict = "⚠️ Description Manual Check Needed"
                             except Exception as e:
                                 logger.error(f"Error checking description: {e}")
                                 sys.exit(1)  # Exit the script with an error
                         else:
-                            # Assign verdict for cars without descriptions
-                            verdict = "⚠️ No Description"
+                            # Include cars without descriptions and prompt manual check
+                            verdict = "⚠️ Description Manual Check Needed"
                             logger.info(f"Car ID {car['ID']} has no valid description.")
 
                     # Prepare the message to send

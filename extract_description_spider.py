@@ -104,7 +104,7 @@ class DescriptionSpider(scrapy.Spider):
 
     def closed(self, reason):
         # Send message via Telegram with the total descriptions extracted
-        message = f"Total descriptions extracted and stored (with at least 3 characters): {self.total_descriptions_extracted}"
+        message = f"Total descriptions extracted and stored: {self.total_descriptions_extracted}"
         self.bot_helper.send_result(message)
         logger.info(f"Sent Telegram message: {message}")
 
