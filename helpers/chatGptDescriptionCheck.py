@@ -15,26 +15,32 @@ logger = logging.getLogger(__name__)
 class ChatGptDescriptionCheck:
     def __init__(self):
         self.system_prompt = (
-            "You are an assistant helping to evaluate car listings in Canada. "
-            "Based on the description provided, respond with one of the following words exactly: 'good', 'bad', or 'maybe ok'. "
-            "Consider if the car might be a scam, if it has issues with the engine or transmission, "
-            "if it needs a lot of repairs, or if it can pass a road test. "
-            "Respond only with 'good', 'bad', or 'maybe ok', and nothing else."
+            "You are an expert vehicle evaluator specializing in assessing car listings in Canada. "
+            "Based on the description provided, determine whether the car is in good condition and suitable for purchase. "
+            "Specifically, consider the following factors:\n"
+            "- Can the car pass a roadworthiness test and be legally driven on roads without issues?\n"
+            "- Does the car have any significant mechanical problems, such as issues with the engine, transmission, or brakes?\n"
+            "- Does the car require significant repairs or maintenance to be operational?\n"
+            "- Is there any indication that the listing might be a scam or fraudulent?\n"
+            "\n"
+            "Respond with 'good' if the car appears to be in good condition and ready to drive without major issues. "
+            "Respond with 'bad' if the car has significant problems, requires major repairs, or seems suspicious. "
+            "Respond with 'maybe ok' if you are uncertain due to lack of information or if minor issues are present. "
+            "Provide your response using only one of these words and nothing else."
         )
 
     def check_the_car(self, description):
         try:
             # Call the ChatCompletion endpoint
             response = openai.ChatCompletion.create(
-                model="gpt-4",  # Use "gpt-4" if you have access
+                model="gpt-4",
                 messages=[
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": description}
                 ],
                 max_tokens=3,
                 temperature=0.0,
-                n=1,
-                stop=None
+                n=1
             )
 
             # Get the assistant's reply
@@ -47,7 +53,7 @@ class ChatGptDescriptionCheck:
             elif result == "bad":
                 return False
             elif result == "maybe ok":
-                return None  # maybe ok
+                return None  # Maybe OK
             else:
                 # Handle unexpected responses
                 message = f"Unexpected response from OpenAI: '{result}'"

@@ -102,6 +102,9 @@ class CarNotifier:
 
                 # Check if the car has already been sent
                 if not self.sent_db.db.find_one({"ID": car["ID"]}):
+                    # Initialize verdict
+                    verdict = ""
+
                     # If description check is enabled, evaluate the description
                     if use_description_check:
                         description = car.get('Description', '')
@@ -110,21 +113,20 @@ class CarNotifier:
                                 result = self.description_checker.check_the_car(description)
                                 if result is True:
                                     verdict = "✅ Good"
-                                elif result is False:
-                                    verdict = "❌ Bad"
-                                    continue  # Skip bad cars
-                                elif result is "maybe ok":
-                                    verdict = "🤔 Maybe OK"
                                 else:
-                                    verdict = result
+                                    # Include cars that are 'maybe ok' or have unexpected responses
+                                    verdict = f"❓ {result}"
+                                    # Optionally, you can decide whether to skip 'bad' cars
+                                    if result is False:
+                                        verdict = f"❌ Bad"
+                                        continue  # Skip the car if you don't want 'bad' cars
                             except Exception as e:
                                 logger.error(f"Error checking description: {e}")
                                 sys.exit(1)  # Exit the script with an error
                         else:
+                            # Assign verdict for cars without descriptions
                             verdict = "⚠️ No Description"
-                            logger.warning(f"No valid description for car ID {car['ID']}")
-                    else:
-                        verdict = ""
+                            logger.info(f"Car ID {car['ID']} has no valid description.")
 
                     # Prepare the message to send
                     message = (
