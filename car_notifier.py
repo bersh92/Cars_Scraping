@@ -102,13 +102,9 @@ class CarNotifier:
 
                 # Check if the car has already been sent
                 if not self.sent_db.db.find_one({"ID": car["ID"]}):
-                    # Skip description check for cars already in sent_listings
-                    if use_description_check and self.sent_db.db.find_one({"ID": car["ID"]}):
-                        logger.info(f"Car ID {car['ID']} already checked, skipping description check.")
-                        continue
-
                     # Initialize verdict
                     verdict = ""
+                    status = "Unknown"
 
                     # If description check is enabled, evaluate the description
                     if use_description_check:
@@ -118,20 +114,23 @@ class CarNotifier:
                                 result = self.description_checker.check_the_car(description)
                                 if result is True:
                                     verdict = "✅ Good"
+                                    status = "Good"
                                 else:
-                                    # If car is "bad" skip it
-                                    if result == False:
-                                        verdict = f"❌ Bad"
-                                        continue  # Skip bad cars
-                                    # Handle "maybe ok" or other responses
-                                    verdict = "⚠️ Description Manual Check Needed"
+                                    # If car is "bad", record it and skip sending
+                                    verdict = "❌ Bad"
+                                    status = "Bad"
+                                    logger.info(f"Car ID {car['ID']} marked as Bad and saved.")
+                                    self._save_to_sent_db(car, status)  # Save bad cars to the DB
+                                    continue
                             except Exception as e:
                                 logger.error(f"Error checking description: {e}")
                                 sys.exit(1)  # Exit the script with an error
                         else:
                             # Include cars without descriptions and prompt manual check
-                            verdict = "⚠️ Description Manual Check Needed"
+                            verdict = "⚠️ No Description"
+                            status = "No Description"
                             logger.info(f"Car ID {car['ID']} has no valid description.")
+                            self._save_to_sent_db(car, status)  # Save no-description cars to the DB
 
                     # Prepare the message to send
                     message = (
@@ -150,7 +149,7 @@ class CarNotifier:
 
                     time.sleep(1)
                     self.bot_helper.send_result(message)
-                    self.sent_db.db.insert_one({"ID": car["ID"]})
+                    self._save_to_sent_db(car, "Good")  # Save good cars to the DB
                     inserted_ids.append(car["ID"])  # Add ID to the list
                     total_inserted_ids.append(car["ID"])  # Add to total list
                     logger.info(f"Car with ID {car['ID']} sent and saved to sent_listings.")
@@ -168,6 +167,14 @@ class CarNotifier:
             )
             self.bot_helper.send_result(summary_message)
             logger.info(f"Sent {len(total_inserted_ids)} car IDs to Telegram.")
+
+    def _save_to_sent_db(self, car, status):
+        """Save the car information to the sent_listings collection with the status."""
+        self.sent_db.db.insert_one({
+            "ID": car["ID"],
+            "SentDate": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Status": status
+        })
 
     def close_connections(self):
         """Close database connections."""

@@ -25,7 +25,6 @@ class ChatGptDescriptionCheck:
             "\n"
             "Respond with 'good' if the car appears to be in good condition and ready to drive without major issues. "
             "Respond with 'bad' if the car has significant problems, requires major repairs, or seems suspicious. "
-            "Respond with 'maybe ok' if you are uncertain due to lack of information or if minor issues are present. "
             "Provide your response using only one of these words and nothing else."
         )
 
@@ -52,8 +51,6 @@ class ChatGptDescriptionCheck:
                 return True
             elif result == "bad":
                 return False
-            elif result == "maybe ok":
-                return None  # Maybe OK
             else:
                 # Handle unexpected responses
                 message = f"Unexpected response from OpenAI: '{result}'"

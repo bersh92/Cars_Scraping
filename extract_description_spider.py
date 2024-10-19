@@ -1,6 +1,7 @@
-import scrapy
-import os
 import logging
+import os
+import random
+import scrapy
 from dotenv import load_dotenv
 from scrapy.crawler import CrawlerProcess
 
@@ -13,23 +14,24 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('extract_description_spider')
 
+
 class DescriptionSpider(scrapy.Spider):
     name = 'description_spider'
     custom_settings = {
-        'USER_AGENT': (
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-            ' AppleWebKit/537.36 (KHTML, like Gecko)'
-            ' Chrome/90.0.4430.85 Safari/537.36'
-        ),
-        'DOWNLOAD_DELAY': 3,
+        'DOWNLOAD_DELAY': 2,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'AUTOTHROTTLE_ENABLED': True,
-        'AUTOTHROTTLE_START_DELAY': 2,
-        'AUTOTHROTTLE_MAX_DELAY': 10,
-        'AUTOTHROTTLE_TARGET_CONCURRENCY': 1.0,
+        'AUTOTHROTTLE_START_DELAY': 1,
+        'AUTOTHROTTLE_MAX_DELAY': 5,
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 0.5,
         'RETRY_ENABLED': True,
-        'RETRY_TIMES': 2,
-        'RETRY_HTTP_CODES': [500, 502, 503, 504, 522, 524, 408, 429, 403],
+        'RETRY_TIMES': 3,
+        'RETRY_HTTP_CODES': [500, 502, 503, 504, 522, 524, 408, 429, 403, 302],
+        'REDIRECT_ENABLED': True,
+        'COOKIES_ENABLED': True,  # Enable cookies handling
+        'COOKIES_DEBUG': True,
+        'LOG_LEVEL': 'INFO',  # Set logging level to INFO
+        'LOG_STDOUT': False,
     }
 
     def __init__(self, *args, **kwargs):
@@ -49,21 +51,30 @@ class DescriptionSpider(scrapy.Spider):
         self.total_descriptions_extracted = 0
 
     def start_requests(self):
-        headers = {
-            'User-Agent': self.custom_settings['USER_AGENT'],
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Referer': 'https://www.google.com/',
-        }
+        # User-Agent list to randomize headers for each request
+        user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0'
+        ]
+
         for car in self.cars:
             product_url = car.get('Product URL')
             car_id = car.get('ID')
             if product_url and car_id:
+                headers = {
+                    'User-Agent': random.choice(user_agents),
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Referer': 'https://www.google.com/',
+                }
                 yield scrapy.Request(
                     url=product_url,
                     headers=headers,
                     callback=self.parse,
                     meta={'car_id': car_id, 'product_url': product_url},
+                    dont_filter=True,  # Ensures no filtering on URLs
                     errback=self.errback_handle
                 )
 
@@ -75,8 +86,9 @@ class DescriptionSpider(scrapy.Spider):
         # Initialize description
         description = ''
 
-        # Try to extract description from meta name="description"
+        # Extract description using meta tag
         description = response.xpath('//meta[@name="description"]/@content').get()
+
         if description:
             description = description.strip()
             if len(description) >= 3:
@@ -111,6 +123,7 @@ class DescriptionSpider(scrapy.Spider):
         # Close database connection
         self.db_helper.close_connection()
         logger.info(f"Spider closed: {reason}")
+
 
 if __name__ == '__main__':
     process = CrawlerProcess()
