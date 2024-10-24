@@ -1,8 +1,8 @@
 
 # Car Scraper & Telegram Notifier
 
-![Car Search Bot](img/1.png)
-![Car Search Bot](img/2.png)
+![Car Search Bot](images/1.png)
+![Car Search Bot](images/2.png)
 
 ## Overview
 
